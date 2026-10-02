@@ -32,3 +32,8 @@ docs/design/
 
 # 开发工具
 GreenUpdater.code-workspace
+.zcode/
+
+# 主题验证临时产物（截图脚本与渲染 PNG）
+shot_theme.py
+tmp_themeshots/

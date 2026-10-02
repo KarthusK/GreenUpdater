@@ -51,6 +51,7 @@ class AppEditDialog(QDialog):
         self.setMinimumWidth(560)
 
         root = QVBoxLayout(self)
+        root.setSpacing(10)
         root.addWidget(self._basic_group(app))
         root.addWidget(self._match_group(app))
         root.addWidget(self._install_group(app))
@@ -270,6 +271,8 @@ class AppEditDialog(QDialog):
 
 
 def _wrap(layout, parent) -> QWidget:
+    # 必须清零内边距：否则默认布局边距把行内容下推/右移，与同组其他字段错位
+    layout.setContentsMargins(0, 0, 0, 0)
     w = QWidget(parent)
     w.setLayout(layout)
     return w

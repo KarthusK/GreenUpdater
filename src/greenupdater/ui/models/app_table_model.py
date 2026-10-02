@@ -12,6 +12,14 @@ from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 
 from greenupdater.models import App, AppStatus, UpdateStage
+from greenupdater.ui.theme import (
+    STATUS_BUSY,
+    STATUS_DISABLED,
+    STATUS_FAIL,
+    STATUS_NEUTRAL,
+    STATUS_OK,
+    STATUS_UPDATE,
+)
 
 # 列索引
 COL_CHECK = 0
@@ -23,14 +31,14 @@ COLUMN_COUNT = 5
 
 _HEADERS = ["", "名称", "当前版本", "最新版本", "状态"]
 
-# 状态 → (中文文案, 颜色)
+# 状态 → (中文文案, 颜色)；色值取 theme 的深色背景友好变体
 _STATUS_STYLE: dict[AppStatus, tuple[str, str]] = {
-    AppStatus.UNKNOWN: ("未检查", "#9e9e9e"),
-    AppStatus.UP_TO_DATE: ("已最新", "#2e7d32"),
-    AppStatus.UPDATE_AVAILABLE: ("可更新", "#1565c0"),
-    AppStatus.UPDATING: ("更新中…", "#f9a825"),
-    AppStatus.SUCCESS: ("更新成功", "#2e7d32"),
-    AppStatus.FAILED: ("失败", "#c62828"),
+    AppStatus.UNKNOWN: ("未检查", STATUS_NEUTRAL),
+    AppStatus.UP_TO_DATE: ("已最新", STATUS_OK),
+    AppStatus.UPDATE_AVAILABLE: ("可更新", STATUS_UPDATE),
+    AppStatus.UPDATING: ("更新中…", STATUS_BUSY),
+    AppStatus.SUCCESS: ("更新成功", STATUS_OK),
+    AppStatus.FAILED: ("失败", STATUS_FAIL),
 }
 
 _STAGE_ZH: dict[UpdateStage, str] = {
@@ -42,17 +50,17 @@ _STAGE_ZH: dict[UpdateStage, str] = {
     UpdateStage.OVERWRITE: "覆盖",
 }
 
-_DISABLED_FG = QColor("#9e9e9e")
+_DISABLED_FG = QColor(STATUS_DISABLED)
 
 
 def _dot_icon(color: str) -> QIcon:
-    pm = QPixmap(12, 12)
+    pm = QPixmap(14, 14)
     pm.fill(Qt.transparent)
     p = QPainter(pm)
     p.setRenderHint(QPainter.Antialiasing)
     p.setBrush(QColor(color))
     p.setPen(Qt.NoPen)
-    p.drawEllipse(1, 1, 10, 10)
+    p.drawEllipse(2, 2, 10, 10)
     p.end()
     return QIcon(pm)
 
@@ -61,7 +69,7 @@ _icon_cache: dict[str, QIcon] = {}
 
 
 def status_text(app: App) -> str:
-    text, _ = _STATUS_STYLE.get(app.last_status, ("未检查", "#9e9e9e"))
+    text, _ = _STATUS_STYLE.get(app.last_status, ("未检查", STATUS_NEUTRAL))
     if app.last_status == AppStatus.FAILED and app.last_error_stage:
         text = f"失败({_STAGE_ZH.get(app.last_error_stage, app.last_error_stage.value)})"
     if app.rollback_available:
@@ -70,7 +78,7 @@ def status_text(app: App) -> str:
 
 
 def status_color(app: App) -> str:
-    return _STATUS_STYLE.get(app.last_status, ("", "#9e9e9e"))[1]
+    return _STATUS_STYLE.get(app.last_status, ("", STATUS_NEUTRAL))[1]
 
 
 class AppTableModel(QAbstractTableModel):

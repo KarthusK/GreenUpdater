@@ -49,6 +49,8 @@ class ChooseAssetDialog(QDialog):
         layout.addWidget(self._list)
 
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        btns.button(QDialogButtonBox.Ok).setText("确定")
+        btns.button(QDialogButtonBox.Cancel).setText("取消")
         btns.accepted.connect(self.accept)
         btns.rejected.connect(self.reject)
         layout.addWidget(btns)

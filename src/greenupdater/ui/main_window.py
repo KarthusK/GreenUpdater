@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from greenupdater.infra import ConfigRepository
 from greenupdater.models import App, AppStatus
+from greenupdater.ui import theme
 from greenupdater.ui.models import AppTableModel
 from greenupdater.ui.models.app_table_model import COL_CHECK
 from greenupdater.ui.widgets import TerminalView
@@ -52,7 +53,7 @@ class MainWindow(QMainWindow):
         self._busy = False
 
         self.setWindowTitle("GreenUpdater 绿色更新器")
-        self.resize(960, 680)
+        self.resize(1000, 700)
 
         self._model = AppTableModel(self)
         self._proxy = QSortFilterProxyModel(self)
@@ -73,11 +74,13 @@ class MainWindow(QMainWindow):
     def _build_toolbar(self) -> None:
         tb = QToolBar("主工具栏", self)
         tb.setMovable(False)
-        tb.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        tb.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.addToolBar(tb)
 
-        def act(text, slot, shortcut=None, tip=None) -> QAction:
+        def act(text, slot, shortcut=None, tip=None, icon_name=None, icon_color=None) -> QAction:
             a = QAction(text, self)
+            if icon_name:
+                a.setIcon(theme.icon(icon_name, color=icon_color or theme.ICON))
             if shortcut:
                 a.setShortcut(QKeySequence(shortcut))
             if tip:
@@ -86,18 +89,25 @@ class MainWindow(QMainWindow):
             tb.addAction(a)
             return a
 
-        self.act_add = act("添加", self.addRequested.emit, "Ctrl+N")
-        self.act_edit = act("编辑", self._on_edit, "Ctrl+E")
-        self.act_delete = act("删除", self._on_delete, "Del")
+        self.act_add = act("添加", self.addRequested.emit, "Ctrl+N", icon_name="add")
+        self.act_edit = act("编辑", self._on_edit, "Ctrl+E", icon_name="edit")
+        self.act_delete = act("删除", self._on_delete, "Del", icon_name="delete")
         tb.addSeparator()
-        self.act_check = act("检查", self._on_check, "F5", "检查勾选的软件")
-        self.act_update = act("更新", self._on_update, "Ctrl+U", "更新勾选的软件")
-        self.act_rollback = act("回滚", self._on_rollback, tip="回滚当前选中项")
+        self.act_check = act(
+            "检查", self._on_check, "F5", "检查勾选的软件", icon_name="refresh"
+        )
+        self.act_update = act(
+            "更新", self._on_update, "Ctrl+U", "更新勾选的软件",
+            icon_name="download", icon_color=theme.ACCENT,
+        )
+        self.act_rollback = act(
+            "回滚", self._on_rollback, tip="回滚当前选中项", icon_name="undo"
+        )
         tb.addSeparator()
-        self.act_import = act("导入", self.importRequested.emit)
-        self.act_export = act("导出", self.exportRequested.emit)
+        self.act_import = act("导入", self.importRequested.emit, icon_name="import")
+        self.act_export = act("导出", self.exportRequested.emit, icon_name="export")
         tb.addSeparator()
-        self.act_settings = act("设置", self.settingsRequested.emit)
+        self.act_settings = act("设置", self.settingsRequested.emit, icon_name="settings")
 
     def _build_central(self) -> None:
         self.table = QTableView(self)
@@ -106,6 +116,8 @@ class MainWindow(QMainWindow):
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setSortingEnabled(True)
+        self.table.setAlternatingRowColors(True)
+        self.table.setShowGrid(False)
         self.table.verticalHeader().setVisible(False)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         hh = self.table.horizontalHeader()
@@ -118,13 +130,15 @@ class MainWindow(QMainWindow):
 
         # 进度区
         self.progress_box = QWidget(self)
+        self.progress_box.setObjectName("progressBox")
         pl = QHBoxLayout(self.progress_box)
-        pl.setContentsMargins(6, 2, 6, 2)
+        pl.setContentsMargins(10, 6, 10, 6)
         self.progress_label = QLabel("就绪", self.progress_box)
         self.progress_bar = QProgressBar(self.progress_box)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.btn_cancel = QPushButton("取消", self.progress_box)
+        self.btn_cancel.setIcon(theme.icon("close"))
         self.btn_cancel.clicked.connect(self.cancelRequested.emit)
         pl.addWidget(self.progress_label, 1)
         pl.addWidget(self.progress_bar, 2)
@@ -132,11 +146,13 @@ class MainWindow(QMainWindow):
         self.progress_box.setVisible(False)
 
         self.terminal = TerminalView(self)
+        self.terminal.setObjectName("terminal")
 
         # 终端标题栏（含清屏）
         self.terminal_bar = QWidget(self)
+        self.terminal_bar.setObjectName("terminalBar")
         tbl = QHBoxLayout(self.terminal_bar)
-        tbl.setContentsMargins(6, 2, 6, 2)
+        tbl.setContentsMargins(10, 5, 8, 5)
         tbl.addWidget(QLabel("终端", self.terminal_bar))
         tbl.addStretch(1)
         self.btn_clear_log = QPushButton("清屏", self.terminal_bar)
@@ -146,16 +162,24 @@ class MainWindow(QMainWindow):
         right = QWidget(self)
         rl = QVBoxLayout(right)
         rl.setContentsMargins(0, 0, 0, 0)
+        rl.setSpacing(0)
         rl.addWidget(self.progress_box)
         rl.addWidget(self.terminal_bar)
         rl.addWidget(self.terminal, 1)
 
         self.splitter = QSplitter(Qt.Vertical, self)
+        self.splitter.setHandleWidth(8)
         self.splitter.addWidget(self.table)
         self.splitter.addWidget(right)
         self.splitter.setStretchFactor(0, 3)
         self.splitter.setStretchFactor(1, 1)
-        self.setCentralWidget(self.splitter)
+
+        central = QWidget(self)
+        cl = QVBoxLayout(central)
+        cl.setContentsMargins(10, 6, 10, 6)
+        cl.setSpacing(0)
+        cl.addWidget(self.splitter)
+        self.setCentralWidget(central)
 
     def _build_statusbar(self) -> None:
         self.statusBar().showMessage("就绪")

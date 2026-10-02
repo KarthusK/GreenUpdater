@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 from greenupdater.infra import KeyringUnavailableError, Paths, TokenStore
 from greenupdater.infra.repository import ConfigRepository
 from greenupdater.models import Settings
+from greenupdater.ui.theme import DANGER
 
 _LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
@@ -51,6 +52,7 @@ class SettingsDialog(QDialog):
         settings = repo.get_settings()
 
         root = QVBoxLayout(self)
+        root.setSpacing(10)
         root.addWidget(self._github_group())
         root.addWidget(self._network_group(settings))
         root.addWidget(self._log_group(settings))
@@ -100,7 +102,7 @@ class SettingsDialog(QDialog):
                 "当前系统无可用凭据库，将以匿名访问，受限流约 60 次/小时。", g
             )
             warn.setWordWrap(True)
-            warn.setStyleSheet("color: #c0392b;")
+            warn.setStyleSheet(f"color: {DANGER};")
             lay.addWidget(warn)
         return g
 
