@@ -1,0 +1,7 @@
+# 开发 / 构建依赖
+-r requirements.txt
+pytest>=8
+pytest-qt>=4.4
+ruff>=0.5
+nuitka>=2.3
+pip-tools>=7

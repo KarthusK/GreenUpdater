@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "greenupdater"
+version = "0.1.0"
+description = "GreenUpdater（绿色更新器）—— 便携版/绿色版软件的更新管理工具"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "GreenUpdater contributors" }]
+keywords = ["updater", "portable", "github", "pyside6"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Environment :: Win32 (MS Windows)",
+    "Topic :: System :: Software Distribution",
+]
+dependencies = [
+    "PySide6>=6.6",
+    "httpx>=0.27",
+    "pydantic>=2.0",
+    "keyring>=24",
+    "psutil>=5.9",
+    "py7zr>=0.21",
+    "loguru>=0.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-qt>=4.4",
+    "ruff>=0.5",
+    "nuitka>=2.3",
+    "pip-tools>=7",
+]
+
+[project.scripts]
+greenupdater = "greenupdater.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

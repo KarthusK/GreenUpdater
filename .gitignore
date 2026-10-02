@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 工具缓存
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Nuitka / 打包产物
+*.build/
+*.onefile-build/
+GreenUpdater.dist/
+
+# 便携运行时数据（在 exe 旁生成）
+greenupdater.db
+logs/
+backups/
+tmp/
+
+# 内部设计文档不发布；面向用户的使用指南 docs/usage.md 保留跟踪
+docs/design/
+
+# 开发工具
+GreenUpdater.code-workspace

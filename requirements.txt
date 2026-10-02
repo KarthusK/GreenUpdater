@@ -1,0 +1,8 @@
+# 运行时依赖（与 pyproject.toml 对齐；可用 pip-compile 从 pyproject 生成并锁版本）
+PySide6>=6.6
+httpx>=0.27
+pydantic>=2.0
+keyring>=24
+psutil>=5.9
+py7zr>=0.21
+loguru>=0.7
