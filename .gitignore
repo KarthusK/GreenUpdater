@@ -33,3 +33,4 @@ docs/design/
 # 开发工具
 GreenUpdater.code-workspace
 .zcode/
+.workbuddy/

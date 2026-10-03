@@ -56,3 +56,6 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+# 临时文件统一归置到 tmp/ ;
+# --basetemp 每次运行会清空目标目录，属预期行为。
+addopts = "--basetemp=tmp/pytest"

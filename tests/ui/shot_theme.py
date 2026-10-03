@@ -3,13 +3,12 @@ from __future__ import annotations
 
 import os
 import sys
-import tempfile
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QT_SCALE_FACTOR", "2")
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[2]  # tests/ui/shot_theme.py → 仓库根
 sys.path.insert(0, str(ROOT / "src"))
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -34,6 +33,11 @@ from greenupdater.ui.theme import apply_dark_theme  # noqa: E402
 OUT = ROOT / "tmp" / "themeshots"
 OUT.mkdir(exist_ok=True, parents=True)
 
+# 截图用的临时库固定放 tmp/：本环境下 tempfile 会退化为工作目录，
+# 直接用 mkdtemp() 会在仓库根散落 tmpXXXX/ 目录（已实测）。
+SCRATCH = ROOT / "tmp" / "themeshots" / "_scratch"
+SCRATCH.mkdir(exist_ok=True, parents=True)
+
 
 class FakeProc:
     name = lambda self: "clash-verge.exe"  # noqa: E731
@@ -41,7 +45,8 @@ class FakeProc:
 
 
 def make_repo() -> ConfigRepository:
-    db = Path(tempfile.mkdtemp()) / "shot.db"
+    db = SCRATCH / "shot.db"
+    db.unlink(missing_ok=True)  # 每轮重建，避免沿用上次的样例数据
     repo = ConfigRepository(db)
     base = dict(
         repo_owner="arb",

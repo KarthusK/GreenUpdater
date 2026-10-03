@@ -28,6 +28,8 @@ ruff check src tests                       # 代码检查（配置见 pyproject�
 
 - src-layout：源码在 `src/`，`pyproject.toml` 已设 `pythonpath=["src"]`、`testpaths=["tests"]`。
 - 不要为测试触碰真实系统凭据库：Token 相关测试用**内存 keyring 后端**。
+- **临时文件归置由 `addopts = "--basetemp=tmp/pytest"` 自动完成**（见 pyproject.toml），无需手动传参；该参数每次运行会清空 `tmp/pytest`，属预期行为。用 `-p no:cacheprovider` 或 `-c` 绕过配置时记得自行补上，否则用 `tmp_path` 的测试会在仓库根散落 `pytest-of-<用户>/`。
+- **不要用 `tempfile` 的默认目录**：本环境下系统 Temp 不可用，`tempfile.gettempdir()` 会退化为工作目录，导致在仓库根散落 `tmpXXXX/`。临时产物一律显式写到 `tmp/` 下。
 
 ## 架构（强约束）
 
@@ -93,7 +95,7 @@ docs/         # usage.md(用户手册,发布) + design/(内部设计,gitignore)
 - 不要超出任务范围加功能、抽象或「顺手重构」；bug 修复就只修 bug。
 - 安装依赖 / 改环境前先征得同意。
 - 设计事实来源是 `docs/design/`（内部，可能不发布）；用户手册是 `docs/usage.md`（发布）。改了行为就同步更新对应文档。
-- **所有生成的临时文件统一放在仓库根的 `tmp/` 下**（验证脚本、diff 对比、中间产物等）；在该目录内创建文件是允许的，不要散落到项目根或其它目录；`tmp/` 已在 .gitignore 中，不会进版本库。
+- **所有生成的临时文件统一放在仓库根的 `tmp/` 下**（验证脚本、diff 对比、中间产物等）；在该目录内创建文件是允许的，不要散落到项目根或其它目录；
 
 ## Commit 规范
 - git 操作只做用户字面要求的范围（「生成 commit」不等于 add+commit+push）。

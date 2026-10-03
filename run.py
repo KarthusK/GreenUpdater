@@ -69,7 +69,8 @@ def main() -> None:
 
     # 解析命令行参数：--reinstall 强制重装
     reinstall = "--reinstall" in sys.argv
-    sys.argv.remove("--reinstall")
+    if reinstall:
+        sys.argv.remove("--reinstall")
 
     if reinstall or _needs_reinstall():
         code = _run([py, "-m", "pip", "install", "-e", str(ROOT)])

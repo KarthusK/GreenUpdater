@@ -29,3 +29,49 @@ def test_theme_reexports_color_tokens():
     """既有 from theme import X 的引用方依赖 re-export，抽查关键令牌。"""
     for name in ("DANGER", "ICON", "ACCENT", "STATUS_OK", "TEXT", "TERMINAL_BG"):
         assert getattr(theme, name) == getattr(colors, name)
+
+
+def test_status_ok_follows_accent():
+    """状态绿跟随品牌绿：同一对象，杜绝两者再次分叉。"""
+    assert colors.STATUS_OK is colors.ACCENT
+
+
+def test_qss_has_no_hardcoded_accent():
+    """强调色必须全部走令牌；写死会让改色只生效一半（曾出现 9 处硬编码）。"""
+    text = _QSS_PATH.read_text(encoding="utf-8").lower()
+    for literal in ("74, 222, 128", "4ade80", "86e7ae", "22c55e"):
+        assert literal not in text, f"theme.qss 出现写死的强调色值: {literal}"
+
+
+# ---------- 对比度辅助（WCAG 相对亮度） ----------
+
+
+def _rel_luminance(hex_color: str) -> float:
+    raw = hex_color.lstrip("#")
+    channels = []
+    for i in (0, 2, 4):
+        c = int(raw[i : i + 2], 16) / 255
+        channels.append(c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4)
+    r, g, b = channels
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _contrast(a: str, b: str) -> float:
+    la, lb = _rel_luminance(a), _rel_luminance(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def test_accent_contrast_within_band():
+    """品牌绿需落在 6.0~7.5 亮度带：太亮刺眼、太暗则按钮文字发灰。"""
+    ratio = _contrast(colors.ACCENT, colors.WINDOW_BG)
+    assert 6.0 <= ratio <= 7.5, f"ACCENT 对比度 {ratio:.2f} 越出 6.0~7.5"
+
+
+def test_primary_button_text_stays_readable():
+    """主按钮深字在三态底色上都必须满足 AA 正文 4.5（pressed 最易踩线）。"""
+    for name in ("ACCENT", "ACCENT_HOVER", "ACCENT_PRESSED"):
+        bg = getattr(colors, name)
+        ratio = _contrast(colors.ACCENT_TEXT, bg)
+        assert ratio >= 4.5, f"{name} 上的按钮文字对比度仅 {ratio:.2f}"
+

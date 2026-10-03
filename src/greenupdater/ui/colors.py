@@ -16,19 +16,23 @@ TEXT_SECONDARY = "#9aa0a6"  # 次要文字
 TEXT_DISABLED = "#5f6368"  # 禁用文字
 PLACEHOLDER = "#6b7075"  # 输入框占位符
 
-ACCENT = "#4ade80"  # 强调绿（品牌色）
-ACCENT_HOVER = "#63e894"
-ACCENT_PRESSED = "#35c96e"
+ACCENT = "#22c55e"  # 强调绿（品牌色）
+ACCENT_HOVER = "#20e067"
+ACCENT_PRESSED = "#1bb855"
 ACCENT_TEXT = "#10231a"  # 实心绿按钮上的深色文字
-SELECT_BG = "rgba(74, 222, 128, 0.16)"  # 选中行 / 菜单项高亮（半透明绿）
+ACCENT_TEXT_ON_DARK = "#4ade80"  # 深底上的绿色文字（卡片标题等）
+SELECT_BG = "rgba(34, 197, 94, 0.20)"  # 选中行（表格 / 列表 / 下拉项）
+SELECT_BG_MENU = "rgba(34, 197, 94, 0.22)"  # 菜单项高亮
+SELECT_BG_INPUT = "rgba(34, 197, 94, 0.38)"  # 输入框 / 终端文本选中
 
-STATUS_OK = "#4ade80"  # 已最新 / 更新成功
+# 状态色统一收拢到「对比度 6.0~7.5（相对窗口底）」区间；
+STATUS_OK = ACCENT  # 已最新 / 更新成功：与品牌绿同色，不单独定值
 STATUS_UPDATE = "#64b5f6"  # 可更新
-STATUS_BUSY = "#fbbf24"  # 更新中 / 提示
-STATUS_FAIL = "#f87171"  # 失败
+STATUS_BUSY = "#e0a304"  # 更新中 / 提示
+STATUS_FAIL = "#f87979"  # 失败
 STATUS_NEUTRAL = "#9aa0a6"  # 未检查 / 跳过 / 取消
-STATUS_DISABLED = "#6f7378"  # 停用行
-DANGER = "#f87171"  # 警告文字（设置页等）
+STATUS_DISABLED = "#6f7378"  # 停用行（刻意低对比，不参与亮度带校准）
+DANGER = "#f87979"  # 警告文字（设置页等）
 
 ICON = "#c3c7cc"  # 工具栏图标默认色
 TERMINAL_TEXT = "#c9cdd2"  # 终端正文
@@ -39,6 +43,7 @@ __all__ = [
     "ACCENT_HOVER",
     "ACCENT_PRESSED",
     "ACCENT_TEXT",
+    "ACCENT_TEXT_ON_DARK",
     "BORDER",
     "BORDER_SUBTLE",
     "DANGER",
@@ -46,6 +51,8 @@ __all__ = [
     "ICON",
     "PLACEHOLDER",
     "SELECT_BG",
+    "SELECT_BG_INPUT",
+    "SELECT_BG_MENU",
     "STATUS_BUSY",
     "STATUS_DISABLED",
     "STATUS_FAIL",
