@@ -1,6 +1,8 @@
 """深色主题（对应 docs/design/03-ui.md）。
 
-颜色令牌集中在本模块，供表格状态色、终端着色等处引用，保证单一出处。
+颜色令牌集中在 ``colors.py``（单一出处），本模块 re-export 供表格状态色、
+终端着色等处引用；全局 QSS 存于 ``theme.qss`` 模板文件（IDE 可按 CSS 高亮），
+``$TOKEN`` 占位符在导入时用 ``string.Template`` 渲染成 ``QSS`` 常量。
 ``apply_dark_theme`` = Fusion 风格 + 深色 QPalette（兜底未被 QSS 覆盖的原生绘制）
 + 全局 QSS；Windows 上另挂全局事件过滤器，把所有顶层窗口的系统标题栏切成深色。
 图标为内嵌单色线性 SVG，用 PySide6 自带的 QtSvg 渲染，无新增依赖。
@@ -9,42 +11,43 @@ from __future__ import annotations
 
 import ctypes
 import sys
+from pathlib import Path
+from string import Template
 
 from PySide6.QtCore import QEvent, QByteArray, QObject, QRectF, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap, QPalette
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication, QWidget
 
-# =====================================================================
-# 设计令牌（颜色单一出处）
-# =====================================================================
-WINDOW_BG = "#1e1f22"  # 窗口底色
-SURFACE = "#222428"  # 卡片 / 表头 / 终端标题栏
-FIELD_BG = "#26282c"  # 输入框 / 下拉框 / 按钮
-BORDER = "#3a3e44"  # 输入类控件边框
-BORDER_SUBTLE = "#2e3136"  # 卡片边框 / 分隔线
-TEXT = "#e8eaed"  # 主文字
-TEXT_SECONDARY = "#9aa0a6"  # 次要文字
-TEXT_DISABLED = "#5f6368"  # 禁用文字
-PLACEHOLDER = "#6b7075"  # 输入框占位符
+from greenupdater.ui import colors
 
-ACCENT = "#4ade80"  # 强调绿（品牌色）
-ACCENT_HOVER = "#63e894"
-ACCENT_PRESSED = "#35c96e"
-ACCENT_TEXT = "#10231a"  # 实心绿按钮上的深色文字
-SELECT_BG = "rgba(74, 222, 128, 0.16)"  # 选中行 / 菜单项高亮（半透明绿）
-
-STATUS_OK = "#4ade80"  # 已最新 / 更新成功
-STATUS_UPDATE = "#64b5f6"  # 可更新
-STATUS_BUSY = "#fbbf24"  # 更新中 / 提示
-STATUS_FAIL = "#f87171"  # 失败
-STATUS_NEUTRAL = "#9aa0a6"  # 未检查 / 跳过 / 取消
-STATUS_DISABLED = "#6f7378"  # 停用行
-DANGER = "#f87171"  # 警告文字（设置页等）
-
-ICON = "#c3c7cc"  # 工具栏图标默认色
-TERMINAL_TEXT = "#c9cdd2"  # 终端正文
-TERMINAL_BG = "#17181b"
+# re-export 全部令牌，保持既有 from theme import X / theme.X 引用零改动
+from greenupdater.ui.colors import (  # noqa: F401
+    ACCENT,
+    ACCENT_HOVER,
+    ACCENT_PRESSED,
+    ACCENT_TEXT,
+    BORDER,
+    BORDER_SUBTLE,
+    DANGER,
+    FIELD_BG,
+    ICON,
+    PLACEHOLDER,
+    SELECT_BG,
+    STATUS_BUSY,
+    STATUS_DISABLED,
+    STATUS_FAIL,
+    STATUS_NEUTRAL,
+    STATUS_OK,
+    STATUS_UPDATE,
+    SURFACE,
+    TERMINAL_BG,
+    TERMINAL_TEXT,
+    TEXT,
+    TEXT_DISABLED,
+    TEXT_SECONDARY,
+    WINDOW_BG,
+)
 
 # =====================================================================
 # 内嵌 SVG 图标（Feather/Lucide 风格单色线性图标，24×24 viewBox）
@@ -125,145 +128,19 @@ def icon(name: str, color: str = ICON, size: int = 18) -> QIcon:
 
 
 # =====================================================================
-# 全局样式表
+# 全局样式表（模板见 theme.qss，占位符取自 colors.py）
 # =====================================================================
-QSS = f"""
-/* ===== 全局 ===== */
-QWidget {{ color: {TEXT}; font-size: 12px; }}
-QMainWindow, QDialog {{ background-color: {WINDOW_BG}; }}
-QToolTip {{ background-color: {FIELD_BG}; color: {TEXT}; border: 1px solid {BORDER};
-            padding: 4px 8px; border-radius: 4px; }}
-QLabel {{ background: transparent; }}
-QLabel:disabled {{ color: {TEXT_DISABLED}; }}
+_QSS_PATH = Path(__file__).with_name("theme.qss")
 
-/* ===== 工具栏 ===== */
-QToolBar {{ background: transparent; border: none; padding: 3px 6px; spacing: 2px; }}
-QToolBar::separator {{ background: #34373c; width: 1px; margin: 5px 5px; }}
-QToolButton {{ background: transparent; border: none; border-radius: 6px; padding: 4px 9px; }}
-QToolButton:hover {{ background: #2c2f34; }}
-QToolButton:pressed {{ background: #34383e; }}
-QToolButton:disabled {{ color: {TEXT_DISABLED}; }}
 
-/* ===== 按钮（默认键 = 实心绿主按钮）===== */
-QPushButton {{ background-color: {FIELD_BG}; border: 1px solid {BORDER}; border-radius: 6px;
-               padding: 5px 14px; min-height: 16px; }}
-QPushButton:hover {{ background-color: #32363b; border-color: #464b52; }}
-QPushButton:pressed {{ background-color: #26292d; }}
-QPushButton:disabled {{ color: {TEXT_DISABLED}; background-color: #242628; border-color: #2f3236; }}
-QPushButton:default {{ background-color: {ACCENT}; border-color: {ACCENT};
-                       color: {ACCENT_TEXT}; font-weight: 600; }}
-QPushButton:default:hover {{ background-color: {ACCENT_HOVER}; border-color: {ACCENT_HOVER}; }}
-QPushButton:default:pressed {{ background-color: {ACCENT_PRESSED}; border-color: {ACCENT_PRESSED}; }}
-QPushButton:default:disabled {{ background-color: #2c3a32; border-color: #2c3a32;
-                                color: #576b5f; }}
+def _load_qss() -> str:
+    """渲染 QSS 模板。用 substitute 而非 safe_substitute：
+    占位符拼错时导入即抛 KeyError，避免静默把 $FOO 塞进样式表。"""
+    tokens = {name: getattr(colors, name) for name in colors.__all__}
+    return Template(_QSS_PATH.read_text(encoding="utf-8")).substitute(tokens)
 
-/* ===== 输入框 ===== */
-QLineEdit {{ background-color: {FIELD_BG}; border: 1px solid {BORDER}; border-radius: 6px;
-             padding: 4px 8px; selection-background-color: rgba(74, 222, 128, 0.32); }}
-QLineEdit:hover {{ border-color: #464b52; }}
-QLineEdit:focus {{ border-color: {ACCENT}; }}
-QLineEdit:disabled {{ color: {TEXT_DISABLED}; background-color: #222427; border-color: #303336; }}
-QLineEdit[readOnly="true"] {{ color: {TEXT_SECONDARY}; background-color: #222427; }}
-QTextEdit, QPlainTextEdit {{ background-color: {FIELD_BG}; border: 1px solid {BORDER};
-                             border-radius: 6px; selection-background-color: rgba(74, 222, 128, 0.32); }}
 
-/* ===== 下拉框 ===== */
-QComboBox {{ background-color: {FIELD_BG}; border: 1px solid {BORDER}; border-radius: 6px;
-             padding: 3px 8px 3px 10px; min-width: 64px; }}
-QComboBox:hover {{ border-color: #464b52; }}
-QComboBox:focus {{ border-color: {ACCENT}; }}
-QComboBox:disabled {{ color: {TEXT_DISABLED}; background-color: #222427; }}
-QComboBox::drop-down {{ background: transparent; border: none; width: 20px; }}
-QComboBox QAbstractItemView {{ background-color: {FIELD_BG}; border: 1px solid {BORDER};
-                               border-radius: 6px; padding: 4px; outline: 0;
-                               selection-background-color: rgba(74, 222, 128, 0.2);
-                               selection-color: {TEXT}; }}
-QComboBox QAbstractItemView::item {{ min-height: 24px; padding: 2px 6px; border-radius: 4px; }}
-
-/* ===== 复选 / 单选（深色下自绘指示器，Fusion 原生的边框太淡）===== */
-QCheckBox, QRadioButton {{ spacing: 7px; background: transparent; }}
-QCheckBox:disabled, QRadioButton:disabled {{ color: {TEXT_DISABLED}; }}
-QCheckBox::indicator, QGroupBox::indicator {{ width: 16px; height: 16px;
-    border: 1px solid #4a4f57; border-radius: 4px; background-color: {FIELD_BG}; }}
-QCheckBox::indicator:hover {{ border-color: #5c626b; }}
-QCheckBox::indicator:checked {{ background-color: {ACCENT}; border-color: {ACCENT}; }}
-QCheckBox::indicator:disabled {{ border-color: #33363b; background-color: #222427; }}
-QRadioButton::indicator {{ width: 16px; height: 16px; border: 1px solid #4a4f57;
-    border-radius: 8px; background-color: {FIELD_BG}; }}
-QRadioButton::indicator:hover {{ border-color: #5c626b; }}
-QRadioButton::indicator:checked {{ background-color: {ACCENT}; border-color: {ACCENT}; }}
-QRadioButton::indicator:disabled {{ border-color: #33363b; background-color: #222427; }}
-
-/* ===== 表格 ===== */
-QTableView {{ outline: 0; background-color: {WINDOW_BG}; alternate-background-color: #232529;
-              border: 1px solid {BORDER_SUBTLE}; gridline-color: transparent;
-              selection-background-color: {SELECT_BG}; selection-color: {TEXT}; }}
-QTableView::item {{ padding: 5px 8px; border: none; }}
-QTableView::item:selected {{ background-color: {SELECT_BG}; }}
-QTableCornerButton::section {{ background-color: {SURFACE}; border: none; }}
-QHeaderView {{ background-color: transparent; }}
-QHeaderView::section {{ background-color: {SURFACE}; color: {TEXT_SECONDARY}; padding: 6px 8px;
-                        border: none; border-bottom: 1px solid {BORDER_SUBTLE}; font-weight: 600; }}
-QHeaderView::section:hover {{ background-color: #26282c; color: #c9cdd2; }}
-
-/* ===== 列表 ===== */
-QListWidget {{ background-color: {FIELD_BG}; border: 1px solid {BORDER}; border-radius: 6px;
-               padding: 2px; }}
-QListWidget::item {{ padding: 4px 6px; border-radius: 4px; }}
-QListWidget::item:hover {{ background: #2f3338; }}
-QListWidget::item:selected {{ background: rgba(74, 222, 128, 0.2); color: {TEXT}; }}
-
-/* ===== 分组框（卡片 + 悬浮标题）===== */
-QGroupBox {{ background-color: {SURFACE}; border: 1px solid {BORDER_SUBTLE}; border-radius: 8px;
-             margin-top: 18px; padding: 10px 8px 6px 8px; font-weight: 600; }}
-QGroupBox::title {{ subcontrol-origin: margin; subcontrol-position: top left; left: 10px;
-                    top: 1px; padding: 0 4px; color: #86e7ae; }}
-
-/* ===== 菜单 ===== */
-QMenu {{ background-color: {FIELD_BG}; border: 1px solid {BORDER}; border-radius: 6px;
-         padding: 5px 2px; }}
-QMenu::item {{ padding: 5px 24px 5px 14px; border-radius: 4px; margin: 1px 4px; background: transparent; }}
-QMenu::item:selected {{ background-color: rgba(74, 222, 128, 0.18); }}
-QMenu::item:disabled {{ color: {TEXT_DISABLED}; }}
-QMenu::separator {{ height: 1px; background: #34373c; margin: 5px 10px; }}
-
-/* ===== 进度条 ===== */
-QProgressBar {{ background-color: {FIELD_BG}; border: 1px solid {BORDER}; border-radius: 6px;
-                text-align: center; color: {TEXT}; min-height: 14px; }}
-QProgressBar::chunk {{ background-color: {ACCENT}; border-radius: 5px; }}
-
-/* ===== 滚动条（细圆角）===== */
-QScrollBar:vertical {{ background: transparent; width: 10px; margin: 2px; }}
-QScrollBar::handle:vertical {{ background: #3a3e44; border-radius: 3px; min-height: 24px; }}
-QScrollBar::handle:vertical:hover {{ background: #4a4f57; }}
-QScrollBar::handle:vertical:pressed {{ background: #565c66; }}
-QScrollBar:horizontal {{ background: transparent; height: 10px; margin: 2px; }}
-QScrollBar::handle:horizontal {{ background: #3a3e44; border-radius: 3px; min-width: 24px; }}
-QScrollBar::handle:horizontal:hover {{ background: #4a4f57; }}
-QScrollBar::add-line, QScrollBar::sub-line {{ width: 0; height: 0; }}
-QScrollBar::add-page, QScrollBar::sub-page {{ background: transparent; }}
-
-/* ===== 分割器 / 状态栏 ===== */
-QSplitter::handle {{ background: {WINDOW_BG}; }}
-QSplitter::handle:vertical {{ height: 6px; }}
-QSplitter::handle:hover {{ background: #34373c; }}
-QStatusBar {{ background: #1b1c1f; border-top: 1px solid #2a2d31; color: {TEXT_SECONDARY}; }}
-QStatusBar::item {{ border: none; }}
-QStatusBar QLabel {{ color: {TEXT_SECONDARY}; }}
-
-/* ===== 终端卡片（标题栏 + 终端一体）===== */
-#terminalBar {{ background-color: {SURFACE}; border: 1px solid {BORDER_SUBTLE}; border-radius: 8px;
-                border-bottom-left-radius: 0; border-bottom-right-radius: 0; }}
-#terminalBar QLabel {{ color: {TEXT_SECONDARY}; font-weight: 600; }}
-QPlainTextEdit#terminal {{ background-color: {TERMINAL_BG}; border: 1px solid {BORDER_SUBTLE};
-                           border-top: none; border-radius: 8px; border-top-left-radius: 0;
-                           border-top-right-radius: 0; color: {TERMINAL_TEXT};
-                           font-family: "Cascadia Mono", "Consolas";
-                           selection-background-color: rgba(74, 222, 128, 0.3); }}
-
-/* ===== 进度卡片 ===== */
-#progressBox {{ background-color: {SURFACE}; border: 1px solid {BORDER_SUBTLE}; border-radius: 8px; }}
-"""
+QSS = _load_qss()
 
 
 # =====================================================================

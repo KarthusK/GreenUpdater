@@ -54,6 +54,7 @@ def build_cmd(py: str, onefile: bool) -> list[str]:
         "--include-package=keyring",
         "--include-package=keyring.backends",  # keyring 后端靠 entry points 发现，需显式包含
         "--include-package=py7zr",             # py7zr 依赖较多，显式包含
+        "--include-package-data=greenupdater",  # 打入 ui/theme.qss 等包数据文件
         f"--output-dir={OUTPUT_DIR}",
         f"--output-filename=GreenUpdater{exe_suffix}",
         "--assume-yes-for-downloads",
