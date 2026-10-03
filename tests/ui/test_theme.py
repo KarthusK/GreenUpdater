@@ -75,3 +75,38 @@ def test_primary_button_text_stays_readable():
         ratio = _contrast(colors.ACCENT_TEXT, bg)
         assert ratio >= 4.5, f"{name} 上的按钮文字对比度仅 {ratio:.2f}"
 
+
+# ---------- 图标（icons/*.svg） ----------
+
+_ICONS_DIR = Path(theme.__file__).with_name("icons")
+_MAIN_WINDOW = Path(theme.__file__).with_name("main_window.py")
+
+
+def test_all_icon_files_exist():
+    """ICON_NAMES 里每个名字都必须有对应 .svg 文件。"""
+    missing = [n for n in theme.ICON_NAMES if not (_ICONS_DIR / f"{n}.svg").is_file()]
+    assert not missing, f"缺少图标文件: {missing}"
+
+
+def test_no_orphan_icon_files():
+    """icons/ 下不应有多余的 .svg（改名后留下的孤儿文件）。"""
+    on_disk = {p.stem for p in _ICONS_DIR.glob("*.svg")}
+    assert on_disk == set(theme.ICON_NAMES), f"多余: {on_disk - set(theme.ICON_NAMES)}"
+
+
+def test_icons_use_color_placeholder():
+    """图标必须用 currentColor 占位、且不得写死颜色，否则三态染色失效。"""
+    for name in theme.ICON_NAMES:
+        text = (_ICONS_DIR / f"{name}.svg").read_text(encoding="utf-8")
+        assert theme._COLOR_PLACEHOLDER in text, f"{name}.svg 缺少 currentColor 占位"
+        assert not re.search(r"#[0-9a-fA-F]{3,6}\b", text), f"{name}.svg 写死了颜色"
+
+
+def test_icon_names_match_usage():
+    """main_window.py 里用到的图标名都必须在 ICON_NAMES 内，防止拼错。"""
+    used = set(re.findall(r'icon_name="([^"]+)"', _MAIN_WINDOW.read_text(encoding="utf-8")))
+    assert used, "未在 main_window.py 中解析到 icon_name，检查正则是否失效"
+    unknown = used - set(theme.ICON_NAMES)
+    assert not unknown, f"main_window.py 引用了未定义的图标: {unknown}"
+
+

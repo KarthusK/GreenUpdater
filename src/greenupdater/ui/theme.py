@@ -5,12 +5,14 @@
 ``$TOKEN`` 占位符在导入时用 ``string.Template`` 渲染成 ``QSS`` 常量。
 ``apply_dark_theme`` = Fusion 风格 + 深色 QPalette（兜底未被 QSS 覆盖的原生绘制）
 + 全局 QSS；Windows 上另挂全局事件过滤器，把所有顶层窗口的系统标题栏切成深色。
-图标为内嵌单色线性 SVG，用 PySide6 自带的 QtSvg 渲染，无新增依赖。
+图标为 ``icons/`` 目录下的 Tabler SVG 文件（MIT），用 PySide6 自带的 QtSvg 渲染，
+无新增依赖；加载时把文件里的 ``currentColor`` 替换为主题色，一份文件即可产出三态。
 """
 from __future__ import annotations
 
 import ctypes
 import sys
+from functools import cache
 from pathlib import Path
 from string import Template
 
@@ -50,50 +52,37 @@ from greenupdater.ui.colors import (  # noqa: F401
 )
 
 # =====================================================================
-# 内嵌 SVG 图标（Feather/Lucide 风格单色线性图标，24×24 viewBox）
+# 图标（icons/*.svg，取自 Tabler Icons，MIT——声明见 icons/LICENSE）
 # =====================================================================
-_ICON_BODY: dict[str, str] = {
-    "add": '<path d="M5 12h14"/><path d="M12 5v14"/>',
-    "edit": '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
-    "delete": (
-        '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>'
-        '<path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
-        '<line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>'
-    ),
-    "refresh": '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>',
-    "download": (
-        '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>'
-        '<polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'
-    ),
-    "undo": '<polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>',
-    "import": (
-        '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>'
-        '<polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>'
-    ),
-    "export": (
-        '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>'
-        '<polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'
-    ),
-    "settings": (
-        '<circle cx="12" cy="12" r="3"/>'
-        '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0'
-        'l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2'
-        'v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0'
-        '-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2'
-        '-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1'
-        ' 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1'
-        ' 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0'
-        ' 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 '
-        '0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
-    ),
-    "close": '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
-}
+_ICONS_DIR = Path(__file__).with_name("icons")
 
-_SVG_TEMPLATE = (
-    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" '
-    'fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" '
-    'stroke-linejoin="round">{body}</svg>'
+#: 可用图标名（与 icons/*.svg 文件名一一对应，供测试与自检枚举）
+ICON_NAMES: tuple[str, ...] = (
+    "add",
+    "edit",
+    "delete",
+    "refresh",
+    "download",
+    "undo",
+    "import",
+    "export",
+    "settings",
+    "close",
 )
+
+# Tabler 官方文件用 currentColor 占位描边色；加载时替换为实际颜色，
+# 一份文件即可产出 normal / hover / disabled 三态。
+_COLOR_PLACEHOLDER = "currentColor"
+
+
+@cache
+def _load_icon(name: str) -> str:
+    """读取图标 SVG 原文；文件缺失时明确报错，而不是渲染成空白。"""
+    path = _ICONS_DIR / f"{name}.svg"
+    if not path.is_file():
+        raise FileNotFoundError(f"图标文件缺失: {path}（可用: {', '.join(ICON_NAMES)}）")
+    return path.read_text(encoding="utf-8")
+
 
 _DPR = 2  # 图标按 2x 物理像素渲染，高分屏不糊
 _icon_cache: dict[tuple[str, str, int], QIcon] = {}
@@ -117,12 +106,15 @@ def icon(name: str, color: str = ICON, size: int = 18) -> QIcon:
     cached = _icon_cache.get(key)
     if cached is not None:
         return cached
-    body = _ICON_BODY[name]
+    template = _load_icon(name)
+
+    def render(fg: str) -> QPixmap:
+        return _render_icon(template.replace(_COLOR_PLACEHOLDER, fg), size)
+
     ic = QIcon()
-    ic.addPixmap(_render_icon(_SVG_TEMPLATE.format(color=color, body=body), size), QIcon.Mode.Normal)
-    hover = color if color != ICON else TEXT
-    ic.addPixmap(_render_icon(_SVG_TEMPLATE.format(color=hover, body=body), size), QIcon.Mode.Active)
-    ic.addPixmap(_render_icon(_SVG_TEMPLATE.format(color=TEXT_DISABLED, body=body), size), QIcon.Mode.Disabled)
+    ic.addPixmap(render(color), QIcon.Mode.Normal)
+    ic.addPixmap(render(color if color != ICON else TEXT), QIcon.Mode.Active)
+    ic.addPixmap(render(TEXT_DISABLED), QIcon.Mode.Disabled)
     _icon_cache[key] = ic
     return ic
 

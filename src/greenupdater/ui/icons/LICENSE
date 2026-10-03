@@ -1,0 +1,44 @@
+本目录下的 SVG 图标来自 Tabler Icons，采用 MIT 许可。
+
+    来源：https://tabler.io/icons
+    版本：@tabler/icons 3.48.0（outline 版本）
+    许可：MIT License, Copyright (c) Tabler
+
+所用图标（本目录文件名 → Tabler 图标名）：
+
+    add.svg      → plus
+    edit.svg     → pencil
+    delete.svg   → trash
+    refresh.svg  → refresh
+    download.svg → download
+    undo.svg     → arrow-back-up
+    import.svg   → login
+    export.svg   → logout
+    settings.svg → settings
+    close.svg    → x
+
+各文件均只做两处改动：去掉面向 HTML 的 class/aria 属性与 Tabler 的占位矩形
+（<path stroke="none" d="M0 0h24v24H0z" .../>），此外原样保留。
+
+---------------------------------------------------------------------------
+MIT License
+
+Copyright (c) Tabler
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

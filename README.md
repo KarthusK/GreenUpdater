@@ -82,4 +82,4 @@ tests/          # unit(domain/service/infra) + ui(pytest-qt)
 ## 许可证
 
 
-[MIT](LICENSE)。GUI 依赖 PySide6（LGPL），以动态链接方式使用。
+[MIT](LICENSE)。GUI 依赖 PySide6（LGPL），以动态链接方式使用。界面图标来自 [Tabler Icons](https://tabler.io/icons)（MIT），声明见 [src/greenupdater/ui/icons/LICENSE](src/greenupdater/ui/icons/LICENSE)。
