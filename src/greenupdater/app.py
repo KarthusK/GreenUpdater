@@ -45,7 +45,7 @@ from greenupdater.ui.dialogs import (
 )
 from greenupdater.ui.main_window import MainWindow
 from greenupdater.ui.single_instance import SingleInstance, activate_main_window
-from greenupdater.ui.theme import apply_dark_theme
+from greenupdater.ui.theme import app_icon, apply_dark_theme
 from greenupdater.ui.worker import BatchReport, UpdateWorker
 
 #: 进度刷新最小间隔（秒），配合百分比变化节流，避免重绘抖动
@@ -366,6 +366,7 @@ def main(argv: list[str] | None = None) -> int:
     app = QApplication(argv or sys.argv)
     app.setApplicationName("GreenUpdater")
     app.setQuitOnLastWindowClosed(True)
+    app.setWindowIcon(app_icon())
     apply_dark_theme(app)
 
     guard = SingleInstance()

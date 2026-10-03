@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent
 VENV_DIR = ROOT / ".venv"
 ENTRY = ROOT / "src" / "greenupdater" / "__main__.py"
 OUTPUT_DIR = ROOT / "build"
-ICON = ROOT / "packaging" / "nuitka" / "app.ico"
+ICON = ROOT / "src" / "greenupdater" / "ui" / "app.ico"
 
 
 def venv_python() -> Path:
@@ -54,15 +54,18 @@ def build_cmd(py: str, onefile: bool) -> list[str]:
         "--include-package=keyring",
         "--include-package=keyring.backends",  # keyring 后端靠 entry points 发现，需显式包含
         "--include-package=py7zr",             # py7zr 依赖较多，显式包含
-        "--include-package-data=greenupdater",  # 打入 ui/theme.qss 等包数据文件
+        "--include-package-data=greenupdater",  # 打入 ui/theme.qss、ui/icons/、ui/app.ico 等包数据
         f"--output-dir={OUTPUT_DIR}",
         f"--output-filename=GreenUpdater{exe_suffix}",
         "--assume-yes-for-downloads",
     ]
     if sys.platform == "win32":
         cmd.append("--windows-console-mode=disable")  # GUI 程序，应用内已有终端面板
-        if ICON.exists():
-            cmd.append(f"--windows-icon-from-ico={ICON}")
+        # 图标缺失必须显式失败：早前此处用 ICON.exists() 静默跳过，
+        # 路径写错导致打包产物长期没有图标却无人察觉
+        if not ICON.is_file():
+            raise FileNotFoundError(f"缺少应用图标: {ICON}")
+        cmd.append(f"--windows-icon-from-ico={ICON}")
     cmd.append(str(ENTRY))
     return cmd
 

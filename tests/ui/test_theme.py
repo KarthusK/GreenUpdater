@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import struct
 from pathlib import Path
 
 from greenupdater.ui import colors, theme
@@ -108,5 +109,38 @@ def test_icon_names_match_usage():
     assert used, "未在 main_window.py 中解析到 icon_name，检查正则是否失效"
     unknown = used - set(theme.ICON_NAMES)
     assert not unknown, f"main_window.py 引用了未定义的图标: {unknown}"
+
+
+# ---------- 应用图标（ui/app.ico） ----------
+
+_APP_ICON = Path(theme.__file__).with_name("app.ico")
+_BUILD_PY = Path(theme.__file__).resolve().parents[3] / "build.py"
+
+
+def test_app_icon_file_exists():
+    """应用图标必须存在于包内（打包后靠它设窗口图标）。"""
+    assert _APP_ICON.is_file(), f"缺少应用图标: {_APP_ICON}"
+
+
+def test_app_icon_has_multiple_sizes():
+    """ico 必须含多个尺寸，否则任务栏 / 高分屏会用低清图。"""
+    data = _APP_ICON.read_bytes()
+    assert data[:4] == b"\x00\x00\x01\x00", "不是合法的 ICO 文件"
+    assert struct.unpack("<H", data[4:6])[0] >= 3, "内嵌尺寸过少"
+
+
+def test_build_icon_path_is_valid():
+    """build.py 的 ICON 必须指向真实存在的文件。
+
+    历史 bug：它指向不存在的 packaging/nuitka/app.ico，又用 exists() 静默跳过，
+    导致打包产物长期没有图标。此测试锁死该回归。
+    """
+    source = _BUILD_PY.read_text(encoding="utf-8")
+    match = re.search(r'^ICON = ROOT((?: / "[^"]+")+)$', source, re.M)
+    assert match, "未能从 build.py 解析出 ICON 定义，检查写法是否变更"
+    parts = re.findall(r'"([^"]+)"', match.group(1))
+    icon_path = _BUILD_PY.parent.joinpath(*parts)
+    assert icon_path.is_file(), f"build.py 的 ICON 指向不存在的文件: {icon_path}"
+
 
 

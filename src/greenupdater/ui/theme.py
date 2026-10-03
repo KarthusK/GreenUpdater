@@ -119,6 +119,15 @@ def icon(name: str, color: str = ICON, size: int = 18) -> QIcon:
     return ic
 
 
+@cache
+def app_icon() -> QIcon:
+    """应用图标（窗口 / 任务栏）。多尺寸 ico 由 Qt 按需挑选，高分屏不糊。"""
+    path = Path(__file__).with_name("app.ico")
+    if not path.is_file():
+        raise FileNotFoundError(f"应用图标缺失: {path}")
+    return QIcon(str(path))
+
+
 # =====================================================================
 # 全局样式表（模板见 theme.qss，占位符取自 colors.py）
 # =====================================================================

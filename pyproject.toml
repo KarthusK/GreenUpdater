@@ -44,7 +44,7 @@ greenupdater = "greenupdater.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-greenupdater = ["ui/*.qss", "ui/icons/*.svg", "ui/icons/LICENSE"]
+greenupdater = ["ui/*.qss", "ui/*.ico", "ui/icons/*.svg", "ui/icons/LICENSE"]
 
 [tool.ruff]
 line-length = 100
