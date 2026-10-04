@@ -26,6 +26,7 @@ from .extract import Extractor
 from .overwrite import Overwriter
 from .process import ProcessManager
 from .provider import Asset, AssetMatcher, GitHubProvider, Release, SourceProvider
+from .repo import parse_repo_ref
 from .version import VersionResolver
 
 __all__ = [
@@ -56,6 +57,8 @@ __all__ = [
     # version / detect
     "VersionResolver",
     "LocalVersionDetector",
+    # repo ref
+    "parse_repo_ref",
     # download / extract
     "Downloader",
     "Extractor",

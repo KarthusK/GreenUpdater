@@ -102,8 +102,14 @@ python build.py --onefile  # 单文件（分发方便，误报率略高）
 
 ### 基本信息
 - **名称**：列表里显示的名字，随意起。
-- **源类型**：目前只有 GitHub（其它为预留）。
-- **仓库 owner / repo**：GitHub 仓库地址 `https://github.com/<owner>/<repo>` 里的两段。例如 SumatraPDF 是 `sumatrapdfreader` / `sumatrapdf`。
+- **仓库**：只填一个框，程序会自动识别成 `owner/repo`。可以直接粘贴 GitHub 上【Code】按钮里复制的任意一种克隆地址：
+  - HTTPS：`https://github.com/owner/repo.git`
+  - SSH：`git@github.com:owner/repo.git`
+  - GitHub CLI：`gh repo clone owner/repo`
+  - 也可以直接手写 `owner/repo`（如 SumatraPDF 是 `sumatrapdfreader/sumatrapdf`）。
+
+  留空时框内会灰字提示格式。填完点到别处，地址会自动规范化成 `owner/repo`，便于确认识别正确。
+- **源类型**：仓库框右侧显示，目前只有 GitHub（其它为预留）。
 
 ### 版本匹配（最关键，决定能否挑对文件）
 - **资产匹配正则**：用来从 Release 的文件列表里挑出你要的那个压缩包。用正则匹配**文件名**。

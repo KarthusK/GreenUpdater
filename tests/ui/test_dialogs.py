@@ -165,8 +165,7 @@ def test_settings_proxy_toggle_enables_url(qtbot, env):
 # ---------- AppEditDialog ----------
 def _fill(dlg: AppEditDialog) -> None:
     dlg.ed_name.setText("Foo")
-    dlg.ed_owner.setText("owner")
-    dlg.ed_repo.setText("repo")
+    dlg.ed_repo_ref.setText("owner/repo")
     dlg.ed_asset_pattern.setText(r".*\.zip")
     dlg.ed_target.setText("D:/foo")
 
@@ -180,6 +179,62 @@ def test_app_edit_accept_builds_config(qtbot):
     assert isinstance(cfg, AppConfig)
     assert cfg.name == "Foo"
     assert cfg.repo == "owner/repo"
+
+
+def test_app_edit_repo_placeholder(qtbot):
+    """仓库输入框为空时以 owner/repo 作占位提示。"""
+    dlg = AppEditDialog(None)
+    qtbot.addWidget(dlg)
+    assert dlg.ed_repo_ref.text() == ""
+    assert dlg.ed_repo_ref.placeholderText() == "owner/repo"
+
+
+@pytest.mark.parametrize(
+    "pasted",
+    [
+        "https://github.com/owner/repo.git",
+        "git@github.com:owner/repo.git",
+        "ssh://git@github.com/owner/repo.git",
+        "gh repo clone owner/repo",
+        "github.com/owner/repo",
+    ],
+)
+def test_app_edit_parses_clone_urls(qtbot, pasted):
+    """三种克隆形式（HTTPS / SSH / gh CLI）都要能识别成 owner/repo。"""
+    dlg = AppEditDialog(None)
+    qtbot.addWidget(dlg)
+    _fill(dlg)
+    dlg.ed_repo_ref.setText(pasted)
+    dlg._on_accept()
+    cfg = dlg.get_config()
+    assert cfg is not None
+    assert cfg.repo == "owner/repo"
+
+
+def test_app_edit_normalizes_on_focus_out(qtbot):
+    """失焦时把粘贴的地址就地规范化成 owner/repo。"""
+    dlg = AppEditDialog(None)
+    qtbot.addWidget(dlg)
+    dlg.ed_repo_ref.setText("git@github.com:owner/repo.git")
+    dlg._on_repo_ref_edited()
+    assert dlg.ed_repo_ref.text() == "owner/repo"
+
+
+def test_app_edit_editing_prefills_repo_ref(qtbot):
+    """编辑已有软件时，单框回填为 owner/repo 形式。"""
+    from greenupdater.models import App
+
+    app = App(
+        id=1,
+        name="Foo",
+        repo_owner="octo",
+        repo_name="cat",
+        asset_pattern=r".*\.zip",
+        target_dir=Path("D:/foo"),
+    )
+    dlg = AppEditDialog(app)
+    qtbot.addWidget(dlg)
+    assert dlg.ed_repo_ref.text() == "octo/cat"
 
 
 def test_app_edit_local_version_manual(qtbot):

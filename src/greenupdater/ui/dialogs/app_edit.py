@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 )
 from pydantic import ValidationError
 
-from greenupdater.domain import LocalVersionDetector
+from greenupdater.domain import LocalVersionDetector, parse_repo_ref
 from greenupdater.models import (
     App,
     AppConfig,
@@ -71,17 +71,16 @@ class AppEditDialog(QDialog):
         self.ed_name = QLineEdit(app.name if app else "", g)
         f.addRow("名称*", self.ed_name)
 
-        self.cb_source = QLabel("GitHub", g)  # 仅 GitHub，其余为预留
-        f.addRow("源类型", self.cb_source)
-
+        # 仓库只用一个输入框：用户可直接粘贴 GitHub 的 HTTPS / SSH / gh CLI 克隆地址，
+        # 失焦或确定时统一解析成 owner/repo（解析逻辑在 domain.repo，便于单测）。
         row = QHBoxLayout()
-        self.ed_owner = QLineEdit(app.repo_owner if app else "", g)
-        self.ed_repo = QLineEdit(app.repo_name if app else "", g)
-        row.addWidget(QLabel("owner*"))
-        row.addWidget(self.ed_owner, 1)
-        row.addWidget(QLabel("repo*"))
-        row.addWidget(self.ed_repo, 1)
-        f.addRow("仓库", _wrap(row, g))
+        self.ed_repo_ref = QLineEdit(f"{app.repo_owner}/{app.repo_name}" if app else "", g)
+        self.ed_repo_ref.setPlaceholderText("owner/repo")
+        self.ed_repo_ref.editingFinished.connect(self._on_repo_ref_edited)
+        self.lbl_source = QLabel("GitHub", g)  # 仅 GitHub，其余为预留
+        row.addWidget(self.ed_repo_ref, 1)
+        row.addWidget(self.lbl_source)
+        f.addRow("仓库*", _wrap(row, g))
         return g
 
     def _match_group(self, app: App | None) -> QWidget:
@@ -182,6 +181,12 @@ class AppEditDialog(QDialog):
         return w
 
     # ---------- 交互 ----------
+    def _on_repo_ref_edited(self) -> None:
+        """失焦/回车时就地规范化，让用户立刻看到识别结果；失败则保持原样待提交时报错。"""
+        parsed = parse_repo_ref(self.ed_repo_ref.text())
+        if parsed:
+            self.ed_repo_ref.setText(f"{parsed[0]}/{parsed[1]}")
+
     def _on_browse(self) -> None:
         d = QFileDialog.getExistingDirectory(self, "选择目标目录", self.ed_target.text())
         if d:
@@ -221,12 +226,25 @@ class AppEditDialog(QDialog):
 
     # ---------- 校验 / 输出 ----------
     def _on_accept(self) -> None:
+        parsed = parse_repo_ref(self.ed_repo_ref.text())
+        if parsed is None:
+            QMessageBox.critical(
+                self,
+                "校验失败",
+                "无法识别仓库地址。\n\n"
+                "请填 owner/repo，或粘贴 GitHub 的克隆地址：\n"
+                "  https://github.com/owner/repo.git\n"
+                "  git@github.com:owner/repo.git\n"
+                "  gh repo clone owner/repo",
+            )
+            return
+        owner, repo = parsed
         try:
             cfg = AppConfig(
                 name=self.ed_name.text().strip(),
                 source_type=SourceType.GITHUB,
-                repo_owner=self.ed_owner.text().strip(),
-                repo_name=self.ed_repo.text().strip(),
+                repo_owner=owner,
+                repo_name=repo,
                 asset_pattern=self.ed_asset_pattern.text().strip(),
                 version_source=(
                     VersionSource.ASSET_NAME if self.rb_asset.isChecked() else VersionSource.TAG
