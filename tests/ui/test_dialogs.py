@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from keyring.backend import KeyringBackend
 from keyring.backends.fail import Keyring as FailKeyring
+from PySide6.QtWidgets import QMessageBox
 
 from greenupdater.domain import Asset
 from greenupdater.infra import ConfigRepository, Paths, TokenStore
@@ -211,7 +212,7 @@ def test_app_edit_parses_clone_urls(qtbot, pasted):
     assert cfg.repo == "owner/repo"
 
 
-def test_app_edit_normalizes_on_focus_out(qtbot):
+def test_app_edit_normalizes_on_focus_out(qtbot, name_prompt):
     """失焦时把粘贴的地址就地规范化成 owner/repo。"""
     dlg = AppEditDialog(None)
     qtbot.addWidget(dlg)
@@ -245,3 +246,115 @@ def test_app_edit_local_version_manual(qtbot):
     dlg._on_accept()
     version, src = dlg.get_local_version()
     assert version == "1.2.3"
+
+
+# ---------- 名称同步建议（失焦时） ----------
+@pytest.fixture()
+def name_prompt(monkeypatch):
+    """桩掉模态 question，记录调用次数并控制用户选择。
+
+    该分支会弹模态框，直接调用会让自动化测试挂起（见文件头约定）。
+    """
+    calls: list[tuple] = []
+    answer = {"ret": QMessageBox.StandardButton.Yes}
+
+    def fake_question(parent, title, text, *args, **kwargs):
+        calls.append((title, text))
+        return answer["ret"]
+
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(fake_question))
+    return calls, answer
+
+
+def test_repo_ref_change_prompts_name_sync(qtbot, name_prompt):
+    """解析结果变化且名称不同 → 提示；选"是"则名称改为 repo 名。"""
+    calls, _ = name_prompt
+    dlg = AppEditDialog(None)
+    qtbot.addWidget(dlg)
+    dlg.ed_name.setText("Foo")
+    dlg.ed_repo_ref.setText("git@github.com:x/bar.git")
+    dlg._on_repo_ref_edited()
+    assert len(calls) == 1
+    assert dlg.ed_name.text() == "bar"
+
+
+def test_repo_ref_prompt_declined_keeps_name(qtbot, name_prompt):
+    """用户选"否"时名称保持不变。"""
+    calls, answer = name_prompt
+    answer["ret"] = QMessageBox.StandardButton.No
+    dlg = AppEditDialog(None)
+    qtbot.addWidget(dlg)
+    dlg.ed_name.setText("Foo")
+    dlg.ed_repo_ref.setText("https://github.com/x/bar")
+    dlg._on_repo_ref_edited()
+    assert len(calls) == 1
+    assert dlg.ed_name.text() == "Foo"
+
+
+def test_repo_ref_same_as_name_no_prompt(qtbot, name_prompt):
+    """名称已与仓库名一致 → 不弹提示。"""
+    calls, _ = name_prompt
+    dlg = AppEditDialog(None)
+    qtbot.addWidget(dlg)
+    dlg.ed_name.setText("bar")
+    dlg.ed_repo_ref.setText("x/bar")
+    dlg._on_repo_ref_edited()
+    assert calls == []
+
+
+def test_repo_ref_unchanged_no_reprompt(qtbot, name_prompt):
+    """同一地址连续失焦两次 → 只提示一次（用户拒绝后不再追问）。"""
+    calls, answer = name_prompt
+    answer["ret"] = QMessageBox.StandardButton.No
+    dlg = AppEditDialog(None)
+    qtbot.addWidget(dlg)
+    dlg.ed_name.setText("Foo")
+    dlg.ed_repo_ref.setText("x/bar")
+    dlg._on_repo_ref_edited()
+    dlg._on_repo_ref_edited()
+    assert len(calls) == 1
+
+
+def test_repo_ref_unparseable_no_prompt(qtbot, name_prompt):
+    """无法识别时不提示、不规范化。"""
+    calls, _ = name_prompt
+    dlg = AppEditDialog(None)
+    qtbot.addWidget(dlg)
+    dlg.ed_name.setText("Foo")
+    dlg.ed_repo_ref.setText("justoneword")
+    dlg._on_repo_ref_edited()
+    assert calls == []
+    assert dlg.ed_repo_ref.text() == "justoneword"
+
+
+def test_repo_ref_editing_initial_no_prompt(qtbot, name_prompt):
+    """编辑态打开后直接失焦：解析结果与已存值相同 → 不提示。"""
+    from greenupdater.models import App
+
+    calls, _ = name_prompt
+    app = App(
+        id=1,
+        name="Foo",
+        repo_owner="octo",
+        repo_name="cat",
+        asset_pattern=r".*\.zip",
+        target_dir=Path("D:/foo"),
+    )
+    dlg = AppEditDialog(app)
+    qtbot.addWidget(dlg)
+    dlg._on_repo_ref_edited()
+    assert calls == []
+
+
+def test_repo_ref_changed_to_different_repo_prompts_again(qtbot, name_prompt):
+    """换一个仓库地址 → 解析结果变化，应再次提示。"""
+    calls, answer = name_prompt
+    answer["ret"] = QMessageBox.StandardButton.No
+    dlg = AppEditDialog(None)
+    qtbot.addWidget(dlg)
+    dlg.ed_name.setText("Foo")
+    dlg.ed_repo_ref.setText("x/bar")
+    dlg._on_repo_ref_edited()
+    dlg.ed_repo_ref.setText("x/baz")
+    dlg._on_repo_ref_edited()
+    assert len(calls) == 2

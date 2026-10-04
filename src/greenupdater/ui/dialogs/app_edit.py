@@ -45,6 +45,10 @@ class AppEditDialog(QDialog):
         self._version_src = app.current_version_src if app else VersionDetectSource.UNKNOWN
         self._config: AppConfig | None = None
         self._local_version: str | None = None
+        # 上次成功解析的 (owner, repo)；用于失焦时判断"解析结果是否变化"，避免重复提示
+        self._last_parsed_repo: tuple[str, str] | None = (
+            (app.repo_owner, app.repo_name) if app else None
+        )
 
         self.setWindowTitle("编辑软件" if self._editing else "添加软件")
         self.setModal(True)
@@ -184,8 +188,27 @@ class AppEditDialog(QDialog):
     def _on_repo_ref_edited(self) -> None:
         """失焦/回车时就地规范化，让用户立刻看到识别结果；失败则保持原样待提交时报错。"""
         parsed = parse_repo_ref(self.ed_repo_ref.text())
-        if parsed:
-            self.ed_repo_ref.setText(f"{parsed[0]}/{parsed[1]}")
+        if not parsed:
+            return
+        self.ed_repo_ref.setText(f"{parsed[0]}/{parsed[1]}")
+        # 仅在解析结果发生变化时提示，避免同一仓库反复打扰（用户拒绝后不再追问）
+        if parsed == self._last_parsed_repo:
+            return
+        self._last_parsed_repo = parsed
+        self._maybe_prompt_name(parsed[1])
+
+    def _maybe_prompt_name(self, repo: str) -> None:
+        """名称与仓库名不一致时建议同步；已一致则不处理。"""
+        if self.ed_name.text().strip() == repo:
+            return
+        ret = QMessageBox.question(
+            self,
+            "名称建议",
+            f'名称与仓库名 "{repo}" 不一致，是否将名称改为 "{repo}"？',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if ret == QMessageBox.StandardButton.Yes:
+            self.ed_name.setText(repo)
 
     def _on_browse(self) -> None:
         d = QFileDialog.getExistingDirectory(self, "选择目标目录", self.ed_target.text())
