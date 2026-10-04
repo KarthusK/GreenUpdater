@@ -6,16 +6,22 @@
 
 所用图标（本目录文件名 → Tabler 图标名）：
 
-    add.svg      → plus
-    edit.svg     → pencil
-    delete.svg   → trash
-    refresh.svg  → refresh
-    download.svg → download
-    undo.svg     → arrow-back-up
-    import.svg   → login
-    export.svg   → logout
-    settings.svg → settings
-    close.svg    → x
+    工具栏图标（theme.py 运行时以 currentColor 注入颜色，产出三态）：
+    add.svg             → plus
+    edit.svg            → pencil
+    delete.svg          → trash
+    refresh.svg         → refresh
+    download.svg        → download
+    undo.svg            → arrow-back-up
+    import.svg          → login
+    export.svg          → logout
+    settings.svg        → settings
+    close.svg           → x
+
+    勾选框 / 单选框选中态叠加图形（由 theme.qss 的 image: 直接加载，颜色写死，
+    不做运行时染色）：
+    checkbox-check.svg  → check（stroke-width 由 2 调为 3，16px 下更清晰）
+    radio-dot.svg       → point（半径由 5 调为 6，匹配 Qt 原生圆点的 8x8）
 
 各文件均只做两处改动：去掉面向 HTML 的 class/aria 属性与 Tabler 的占位矩形
 （<path stroke="none" d="M0 0h24v24H0z" .../>），此外原样保留。

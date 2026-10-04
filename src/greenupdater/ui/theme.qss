@@ -53,18 +53,22 @@ QComboBox QAbstractItemView { background-color: $FIELD_BG; border: 1px solid $BO
                                selection-color: $TEXT; }
 QComboBox QAbstractItemView::item { min-height: 24px; padding: 2px 6px; border-radius: 4px; }
 
-/* ===== 复选 / 单选（深色下自绘指示器，Fusion 原生的边框太淡）===== */
+/* ===== 复选 / 单选（深色下自绘指示器，Fusion 原生的边框太淡）=====
+   选中态除绿色填充外还叠加勾/点图形：纯色块在 16px 下缺乏"已选中"的确认感。
+   图形来自 icons/（Tabler），此处用绝对路径注入。 */
 QCheckBox, QRadioButton { spacing: 7px; background: transparent; }
 QCheckBox:disabled, QRadioButton:disabled { color: $TEXT_DISABLED; }
 QCheckBox::indicator, QGroupBox::indicator { width: 16px; height: 16px;
     border: 1px solid #4a4f57; border-radius: 4px; background-color: $FIELD_BG; }
 QCheckBox::indicator:hover { border-color: #5c626b; }
-QCheckBox::indicator:checked { background-color: $ACCENT; border-color: $ACCENT; }
+QCheckBox::indicator:checked { background-color: $ACCENT; border-color: $ACCENT;
+    image: url("$ICONS_DIR/checkbox-check.svg"); }
 QCheckBox::indicator:disabled { border-color: #33363b; background-color: #222427; }
 QRadioButton::indicator { width: 16px; height: 16px; border: 1px solid #4a4f57;
     border-radius: 8px; background-color: $FIELD_BG; }
 QRadioButton::indicator:hover { border-color: #5c626b; }
-QRadioButton::indicator:checked { background-color: $ACCENT; border-color: $ACCENT; }
+QRadioButton::indicator:checked { background-color: $ACCENT; border-color: $ACCENT;
+    image: url("$ICONS_DIR/radio-dot.svg"); }
 QRadioButton::indicator:disabled { border-color: #33363b; background-color: #222427; }
 
 /* ===== 表格 ===== */

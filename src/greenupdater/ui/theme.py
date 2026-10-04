@@ -138,6 +138,9 @@ def _load_qss() -> str:
     """渲染 QSS 模板。用 substitute 而非 safe_substitute：
     占位符拼错时导入即抛 KeyError，避免静默把 $FOO 塞进样式表。"""
     tokens = {name: getattr(colors, name) for name in colors.__all__}
+    # 图标路径必须注入绝对路径：QSS 的 url() 相对路径按进程 CWD 解析，
+    # 打包后从别处启动会静默加载不到（勾/点消失）。
+    tokens["ICONS_DIR"] = _ICONS_DIR.as_posix()
     return Template(_QSS_PATH.read_text(encoding="utf-8")).substitute(tokens)
 
 

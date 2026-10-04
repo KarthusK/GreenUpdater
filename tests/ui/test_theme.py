@@ -9,6 +9,13 @@ from greenupdater.ui import colors, theme
 
 _QSS_PATH = Path(theme.__file__).with_name("theme.qss")
 
+#: theme.qss 里非颜色的路径令牌（由 theme.py 在渲染时注入）
+_PATH_TOKENS = {"ICONS_DIR"}
+
+#: 非工具栏图标：由 QSS image: 直接加载的固定叠加图形，颜色写死、不做运行时染色，
+#: 因此不受 ICON_NAMES 的 currentColor 约束，但仍需防孤儿文件。
+_OVERLAY_ICONS = {"checkbox-check", "radio-dot"}
+
 
 def test_qss_rendered_without_placeholders():
     """渲染后不应残留 $TOKEN 或未替换的花括号转义痕迹。"""
@@ -18,11 +25,11 @@ def test_qss_rendered_without_placeholders():
 
 
 def test_qss_placeholders_all_known_tokens():
-    """模板占位符必须都在 colors.__all__ 中，防止拼错令牌名。"""
+    """模板占位符必须都在 colors.__all__ 或已知路径令牌中，防止拼错令牌名。"""
     text = _QSS_PATH.read_text(encoding="utf-8")
     used = set(re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)", text))
     assert used, "模板中未找到占位符，检查 theme.qss 是否被误改"
-    unknown = used - set(colors.__all__)
+    unknown = used - set(colors.__all__) - _PATH_TOKENS
     assert not unknown, f"theme.qss 使用了未定义令牌: {unknown}"
 
 
@@ -90,9 +97,34 @@ def test_all_icon_files_exist():
 
 
 def test_no_orphan_icon_files():
-    """icons/ 下不应有多余的 .svg（改名后留下的孤儿文件）。"""
+    """icons/ 下不应有多余的 .svg（改名后留下的孤儿文件）。
+
+    目录内容 = 工具栏图标 ∪ 选中态叠加图形，两类都要显式声明。
+    """
     on_disk = {p.stem for p in _ICONS_DIR.glob("*.svg")}
-    assert on_disk == set(theme.ICON_NAMES), f"多余: {on_disk - set(theme.ICON_NAMES)}"
+    expected = set(theme.ICON_NAMES) | _OVERLAY_ICONS
+    assert on_disk == expected, f"多余: {on_disk - expected}  缺失: {expected - on_disk}"
+
+
+def test_overlay_icon_files_exist():
+    """勾/点叠加图形必须存在且非空（缺失时 Qt 会静默不画，勾就没了）。"""
+    for name in _OVERLAY_ICONS:
+        p = _ICONS_DIR / f"{name}.svg"
+        assert p.is_file(), f"缺少叠加图形: {p}"
+        assert p.stat().st_size > 0, f"叠加图形为空: {p}"
+
+
+def test_qss_icon_urls_are_absolute():
+    """QSS 里的图标 url 必须是绝对路径。
+
+    QSS 的 url() 相对路径按进程 CWD 解析；打包后从别处启动会加载不到，
+    勾/点静默消失。此测试锁死该行为。
+    """
+    urls = re.findall(r'url\("([^"]+)"\)', theme.QSS)
+    assert urls, "theme.QSS 未找到 url()，检查勾/点叠加是否被移除"
+    for u in urls:
+        assert Path(u).is_absolute(), f"图标路径不是绝对路径: {u}"
+        assert Path(u).is_file(), f"图标文件不存在: {u}"
 
 
 def test_icons_use_color_placeholder():
@@ -141,6 +173,70 @@ def test_build_icon_path_is_valid():
     parts = re.findall(r'"([^"]+)"', match.group(1))
     icon_path = _BUILD_PY.parent.joinpath(*parts)
     assert icon_path.is_file(), f"build.py 的 ICON 指向不存在的文件: {icon_path}"
+
+
+# ---------- 选中态标记渲染（需 QApplication，用 qtbot） ----------
+
+
+def _marker_dark_pixels(qtbot, widget) -> int:
+    """统计"指示器内部"的深色像素数（勾/点即深色）。
+
+    指示器不在控件左上角（布局有居中与边距），所以先用绿色填充定位指示器
+    的包围盒，再在该范围内统计深色像素——否则会采到空白区域而误判为"没画勾"。
+    """
+    from PySide6.QtWidgets import QApplication
+
+    widget.setStyleSheet(theme.QSS)
+    widget.resize(200, 40)
+    widget.show()
+    QApplication.processEvents()
+    img = widget.grab().toImage()
+
+    # 1) 用绿色填充定位指示器包围盒
+    gx, gy = [], []
+    for y in range(img.height()):
+        for x in range(img.width()):
+            c = img.pixelColor(x, y)
+            if c.alpha() > 128 and c.green() > 110 and c.red() < 150 and c.blue() < 150:
+                gx.append(x)
+                gy.append(y)
+    if not gx:
+        return 0  # 未选中态：没有绿色填充
+
+    # 2) 在指示器范围内统计深色像素（勾/点为 #10231a）
+    dark = 0
+    for y in range(min(gy), max(gy) + 1):
+        for x in range(min(gx), max(gx) + 1):
+            c = img.pixelColor(x, y)
+            if c.alpha() > 128 and c.red() < 90 and c.green() < 90 and c.blue() < 90:
+                dark += 1
+    return dark
+
+
+def test_checkbox_checked_draws_tick(qtbot):
+    """选中态必须画出勾（只有绿色填充是不够的，16px 下没有确认感）。"""
+    from PySide6.QtWidgets import QCheckBox
+
+    box = QCheckBox("x")
+    qtbot.addWidget(box)
+    box.setChecked(False)
+    off = _marker_dark_pixels(qtbot, box)
+    box.setChecked(True)
+    on = _marker_dark_pixels(qtbot, box)
+    assert on > off, f"选中态未出现勾：选中深色像素={on}，未选中={off}"
+
+
+def test_radio_checked_draws_dot(qtbot):
+    """单选选中态必须画出圆点。"""
+    from PySide6.QtWidgets import QRadioButton
+
+    btn = QRadioButton("x")
+    qtbot.addWidget(btn)
+    btn.setChecked(False)
+    off = _marker_dark_pixels(qtbot, btn)
+    btn.setChecked(True)
+    on = _marker_dark_pixels(qtbot, btn)
+    assert on > off, f"选中态未出现圆点：选中深色像素={on}，未选中={off}"
 
 
 
